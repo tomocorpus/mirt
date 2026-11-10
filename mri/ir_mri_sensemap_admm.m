@@ -42,7 +42,7 @@
 %|	niter		# of iterations (default: 500)
 %|	isave		which iterations to save (number
 %|				list, 'last', 'all') (default: last)
-%|	thresh		thresholding value for initialization (default: 0.05)
+%|	thresh		thresholding value for initialization (default: 0.12)
 %|	maskD [(N)]	mask specifying pixels that include real (useful) data
 %|				default: entire image, which is bad choice!
 %|	maskS [(N)]	mask specifying pixels to estimate (smap support)

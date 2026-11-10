@@ -39,6 +39,11 @@
 %| caution: fwhm likely inaccurate if the psf is centered near the image edge
 %| yet is wide enough to overlap the edge.  'shift0' may help in such cases.
 %|
+%| The theory behind this function is from the 1996 IEEE Tr. Im. Proc. paper
+%| Fessler & Rogers: "Spatial resolution properties of penalized-likelihood
+%| image reconstruction methods: Space-invariant tomographs"
+%| https://doi.org/10.1109/83.535846
+%|
 %| Copyright 2002-1-30, Jeff Fessler, University of Michigan
 %| 2015-08-13, changes by Valur Olafsson for FWHM
 

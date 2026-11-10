@@ -23,7 +23,7 @@
 %	order		regularization order (default: 2)
 %	niter		# of iterations
 %	fmax		percent of median used in calculating scale factor
-% 	thresh		percent of median used in masking out for RMSerror
+%	thresh		percent of median used in masking out for RMSerror
 %	winit	[nx,ny]		initial field map for iterating
 %				(default is to estimate from first two scans)
 %	mask	[nx,ny]		logical support mask (only estimate within this)
@@ -45,7 +45,7 @@ if nargin >= 1 && streq(yi, 'test')
 return
 end
 
-if nargin < 2, help(mfilename), error(mfilename), end
+if nargin < 2, ir_usage, end
 
 % Specify defaults & check argument inputs
 arg.l2b = -3;
@@ -153,10 +153,10 @@ nsets = length(etime);
 R2 = 20; % 1/sec decay
 SNR = 20; % dB
 
-dir = [path_find_dir('mri') '/phase-data/'];
-wtrue = 2*pi * fld_read([dir 'fieldmap128.fld']);
-mag = fld_read([dir 'mag128.fld']);
-[nx ny] = size(mag); % 128
+fmap = ir_get_data(fullfile('mri','2001-phase-data','fieldmap128.fld'));
+wtrue = 2*pi * fmap;
+mag = ir_get_data(fullfile('mri','2001-phase-data','mag128.fld'));
+[nx, ny] = size(mag); % 128
 
 im pl 2 3
 im(1, wtrue/(2*pi), 'true field map', [-40, 128]), cbar('Hz')
@@ -165,7 +165,7 @@ im(4, mag, 'mag'), cbar
 image_power = 10*log10(sum(sum(mag.^2))/(nx*ny));
 noise_power = image_power - SNR;
 noise_std = sqrt(10^(noise_power/10));
-noise_std = noise_std / 2; % because complex 
+noise_std = noise_std / 2; % because complex
 
 yik = zeros(nx,ny,nsets);
 for kk=1:nsets
@@ -177,7 +177,7 @@ rng(0)
 yik = yik + noise_std * (randn(size(yik)) + 1i * randn(size(yik)));
 
 printm 'estimate field map'
-[wmap wconv] = mri_field_map_reg_2d(yik, etime, 'l2b', -6, varargin{:});
+[wmap, wconv] = mri_field_map_reg_2d(yik, etime, 'l2b', -6, varargin{:});
 
 mask = mag > 0.05 * max(mag(:));
 im(2, wconv / (2*pi), 'conventional field map', [-40,128]), cbar('Hz')

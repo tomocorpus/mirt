@@ -11,7 +11,7 @@
 %|	'niter'	int		# iterations (default: 1+1)
 %|	'isave'	[]		list of iterations to archive
 %|				(default: 'last')
-%|	'Asum' 	[np 1]		A'1 = G' * c	(optional) column sums
+%|	'Asum'	[np 1]		A'1 = G' * c	(optional) column sums
 %|	userfun	@		user-defined function handle
 %|
 %| out
@@ -23,7 +23,7 @@ if nargin == 1 && streq(x, 'test')
 	run_mfile_local('eml_osem_example')
 return
 end
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 
 if nargin > 5 && isnumeric(varargin{1}) % support old style for now
 	warn 'obsolete use of eml_em'

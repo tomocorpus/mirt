@@ -19,10 +19,10 @@
 %|	'chat'		0|1		verbose? (default: 0)
 %|
 %| out
-%| 	Ct		[Nc Nt]		[mMol] tissue concentration curves
+%|	Ct		[Nc Nt]		[mMol] tissue concentration curves
 %|	Cp		[Nc Nt]		[mMol] local plasma input conc. (AIF)
-%| 	Ca 		[1 Nt]		[mMol] aorta (rarely needed)
-%| 	ht 		[Nc Nt]		[?] dispersion function (rarely needed)
+%|	Ca		[1 Nt]		[mMol] aorta (rarely needed)
+%|	ht		[Nc Nt]		[?] dispersion function (rarely needed)
 %|
 %| For more, see p.82 of Khalsa thesis.
 %|
@@ -30,7 +30,7 @@
 %| 2014-08-21 Jeff Fessler
 
 if nargin == 1 && streq(ti, 'test'), ir_mri_dce_aif1_test, return, end
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 
 arg.h_power = 4; % [unitless] after [11] in yang:07:mrt
 arg.h_beta = 0.03; % [min] in Fig. 2 of yang:07:mrt

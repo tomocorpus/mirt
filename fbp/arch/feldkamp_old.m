@@ -30,7 +30,7 @@
 % arc detector case contributed by Yingying Zhang 2005-6-13
 
 if nargin == 1 && streq(proj, 'test'), run_mfile_local('feldkamp_example'), return, end
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 if ~isvar('window') || isempty(window)
 	window = 'ramp';
 end
@@ -66,7 +66,7 @@ flip_y		= arg_num_def(args, 'flip_y', '1');
 Dsd		= arg_num(args, 'dis_src_det');
 Dod		= arg_num(args, 'dis_iso_det');
 Dfs		= arg_num_def(args, 'dis_foc_src', inf); % default flat
-Dso = Dsd - Dod; 	% src to "isocenter" distance
+Dso = Dsd - Dod; % src to "isocenter" distance
 
 if offset_source, error 'only offset_source=0 implemented', end
 

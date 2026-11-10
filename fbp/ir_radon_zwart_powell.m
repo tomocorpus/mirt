@@ -20,7 +20,7 @@
 %| 2015-08-10 Jeff Fessler, added self test and parallelized
 
 if nargin == 1 && streq(theta, 'test'), ir_radon_zwart_powell_test, return, end
-if nargin < 2, help(mfilename), error(mfilename), end
+if nargin < 2, ir_usage, end
 
 dim = size(theta);
 theta = theta(:);
@@ -78,4 +78,4 @@ theta = linspace(0,pi,181);
 r = linspace(-1,1,101) * 2;
 [tt rr] = ndgrid(theta, r);
 sino = ir_radon_zwart_powell(tt, rr);
-im('colorneg', r, theta, sino')
+im('colorneg', r, theta, sino'), cbar

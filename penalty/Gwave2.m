@@ -8,17 +8,17 @@
 %|	'mask'	logical [nx ny]	image-domain mask, often: true(nx,ny)
 %|	'wname'		wavelet name (default: 'haar')
 %|				(anything else requires wavelet toolbox) 
-%|	'nlevel' 	integer specifying decomposition level (default 2)
-%|	'scale_filters' 	factor for scaling wavelet filters
+%|	'nlevel'	integer specifying decomposition level (default 2)
+%|	'scale_filters'		factor for scaling wavelet filters
 %|				(default: 1/sqrt(2))
-%|	'redundancy' 	char	default: 'undecimated' (only option for now)
+%|	'redundancy'	char	default: 'undecimated' (only option for now)
 %|
 %| out:
 %|	ob	[np]	fatrix2 object, where np = sum(mask(:))
 %|
 %| Copyright 2011-01-19, Jeff Fessler, University of Michigan
 
-if nargin < 1, help(mfilename), error(mfilename), end
+if nargin < 1, ir_usage, end
 if nargin == 1 && streq(varargin{1}, 'test'), Gwave2_test, return, end
 
 % options

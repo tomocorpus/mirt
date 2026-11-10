@@ -21,7 +21,7 @@
 %| Copyright 2005-12-10, Jeff Fessler, University of Michigan
 
 if nargin == 1 && streq(fsino, 'test'), rebin_fan2par_test, return, end
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 
 % defaults
 arg.ob = false;
@@ -90,11 +90,11 @@ switch arg.class
 case 'Fatrix'
 	dim = [prod(arg.dimo) prod(arg.dimi)];
 	ob = Fatrix(dim, arg, 'caller', 'rebin_fan2par', ...
-        	'forw', @rebin_fan2par_arg_Fatrix, 'back', @error);
+		'forw', @rebin_fan2par_arg_Fatrix, 'back', @error);
 case 'fatrix2'
 	ob = fatrix2('arg', arg, 'does_many', 1, ...
 		'odim', arg.dimo, 'idim', arg.dimi, ...
-        	'forw', @rebin_fan2par_arg, 'back', @error);
+		'forw', @rebin_fan2par_arg, 'back', @error);
 otherwise
 	fail 'bad class'
 end

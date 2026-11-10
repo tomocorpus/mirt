@@ -15,7 +15,7 @@
 %| Copyright 2005-8-1, Jeff Fessler, University of Michigan
 
 if nargin == 1, square_strip_int_test, return, end
-if nargin < 2, help(mfilename), error(mfilename), end
+if nargin < 2, ir_usage, end
 
 % defaults
 arg.dx = 1; % pixel_size
@@ -92,8 +92,19 @@ dx = 2.0; sw = 0.5;
 proj = square_strip_int(rr, aa, 'dx', dx, 'sw', sw);
 
 if im
-	clf, plot(r, proj, '-')
-	title(sprintf('dx=%g sw=%g', dx, sw))
+	im plc 1 2
+	im subplot
+	plot(r, proj, '-')
+	titlef('dx=%g sw=%g', dx, sw), xlabelf('r')
 	axis([minmax(r)' 0 2.9])
 	legend(cellstr(num2str(rad2deg(a'))))
+
+	im subplot
+	r = linspace(-2, 2, 51);
+	a = linspace(0, pi, 201);
+	[rr aa] = ndgrid(r, a);
+	dx = 2.0; sw = dx;
+	proj = square_strip_int(rr, aa, 'dx', dx, 'sw', sw);
+	plot(a, proj', '-')
+	titlef('dx=%g sw=%g', dx, sw), xlabelf('$\phi$')
 end

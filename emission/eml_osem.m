@@ -21,7 +21,7 @@
 %|
 %| Copyright 2002-3-14, Jeff Fessler, University of Michigan
 
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 
 % backward compatability with old usage
 % eml_osem(x, Gb, yi, ci, ri, niter, pixmax, precon, relax0)
@@ -139,7 +139,7 @@ for iter = 1:arg.niter
 
 		% fix: implement ahn's shift trick? no, just use classic.
 		nneg = sum(x < 0);
-		if nneg, printm('oh no! %d negatives', nneg), end
+		if nneg, printm('oh no! %d negatives', nneg), minmax(x), end
 
 		x = max(x,0);	% caution: if x becomes zero, it is always zero!
 		x = min(x,arg.pixmax);

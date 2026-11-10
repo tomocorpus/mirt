@@ -3,6 +3,8 @@
 %|
 %| save current figure to eps file rootdir/base.eps with prompting.
 %|
+%| matlab's newer 'exportgraphics' is perhaps more useful
+%|
 %| options:
 %|	'eps_c'	save to color .eps file without inverting!
 %|	'cw'	color .eps file for use in white paper
@@ -20,7 +22,7 @@
 %|
 %| Copyright 2002-2-1, Jeff Fessler, University of Michigan
 
-if nargin < 1, help(mfilename), error(mfilename), end
+if nargin < 1, ir_usage, end
 if nargin == 1 && streq(varargin{1}, 'test'), savefig_test, return, end
 
 if ir_is_octave

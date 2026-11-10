@@ -1,5 +1,6 @@
   function st = mri_objects(varargin)
 %|function st = mri_objects([options], 'type1', params1, 'type2', params2, ...)
+%|
 %| Generate strum that describes image-domain objects and Fourier domain spectra
 %| of simple structures such as rectangles, disks, superpositions thereof.
 %| These functions are useful for simple "idealized" MRI simulations
@@ -11,6 +12,7 @@
 %|
 %| options
 %|	'fov'	[1] | [Nd]	field of view (needed only for some tests)
+%|	'rect2half'		centered rectangle of width fov/2
 %|
 %| params:
 %|	'dirac2'	[N 3]	[xcent ycent value]
@@ -21,6 +23,7 @@
 %|	'gauss3'	[N 7]	[xcent ycent zcent xwidth ywidth zwidth value]
 %|	'circ2'		[N 5]	[xcent ycent rad value]
 %|	'cyl3'		[N 6]	[xcent ycent zcent xrad zwidth value]
+%|	'sphere'	[N 5]	[xcent ycent zcent rad value]
 %|
 %| out
 %|	st	strum object with methods:
@@ -31,7 +34,7 @@
 %|
 %| Copyright 2007-6-28, Jeff Fessler, University of Michigan
 
-if nargin < 1, help(mfilename), error args, end
+if nargin < 1, ir_usage, end
 if nargin == 1 && streq(varargin{1}, 'test'), mri_objects_test; return, end
 
 fov = [];
@@ -42,9 +45,19 @@ while length(varargin)
 		fov = varargin{2};
 		varargin = {varargin{3:end}};
 	case 'rect2half'
-		st = mri_objects('rect2', [0 0 fov/2 fov/2 1]);
+		if length(fov) == 1
+			fov = [fov fov];
+		elseif length(fov) ~= 2
+			fail('bad fov')
+		end
+		st = mri_objects('rect2', [0 0 fov/2 1]);
 		return
 	case 'rect3half'
+		if length(fov) == 1
+			fov = [fov fov fov];
+		elseif length(fov) ~= 3
+			fail('bad fov')
+		end
 		st = mri_objects('rect3', [0 0 0 fov/2 1]);
 		return
 	case 'case1'
@@ -64,32 +77,37 @@ st.types = {varargin{1:2:end}};
 st.params = {varargin{2:2:end}};
 
 is3 = ~isempty(strfind(col(char(st.types)')', '3')); % any 3D?
+is3 = is3 | ~isempty(strmatch('sphere', st.types));
 
 if is3
 	st = strum(st, { ...
-		'image', @mri_objects_image3, '(x,y,z)';
+		'image', @mri_objects_image3, '(x,y,z, [''dz'', dz, ...])';
 		'kspace', @mri_objects_kspace3, '(u,v,w)';
 		});
 else
 	st = strum(st, { ...
-		'image', @mri_objects_image2, '(x,y)';
+		'image', @mri_objects_image2, ...
+			'(x,y, [''dx'', dx, ''dy'', dy]) (for rect partial volume)';
 		'kspace', @mri_objects_kspace2, '(u,v)';
 		});
 end
 
 
-%
 % mri_objects_image2()
-% x,y,z must all be the same size
+% x,y must all be the same size
 %
-function out = mri_objects_image2(st, x, y)
+function out = mri_objects_image2(st, x, y, varargin)
+
+arg.dx = 0;
+arg.dy = 0;
+arg = vararg_pair(arg, varargin);
 
 st_params = st.params; % fix: subsref limitation
 st_types = st.types; % fix: subsref limitation
 
 out = zeros(size(x));
 
-for ii=1:length(st_types)
+for ii = 1:length(st_types)
 	params = st_params{ii};
 	switch st_types{ii}
 	case 'circ2'
@@ -99,14 +117,13 @@ for ii=1:length(st_types)
 	case 'gauss2'
 		out = out + mri_objects_image_gauss2(params, x, y);
 	case 'rect2'
-		out = out + mri_objects_image_rect2(params, x, y);
+		out = out + mri_objects_image_rect2(params, x, y, arg.dx, arg.dy);
 	otherwise
 		fail('unknown object type %s', st_types{ii})
 	end
 end
 
 
-%
 % mri_objects_kspace2()
 % x,y,z must all be the same size
 %
@@ -117,7 +134,7 @@ st_types = st.types; % fix: subsref limitation
 
 out = zeros(size(u));
 
-for ii=1:length(st_types)
+for ii = 1:length(st_types)
 	params = st_params{ii};
 	switch st_types{ii}
 	case 'circ2'
@@ -135,35 +152,41 @@ end
 
 
 
-%
 % mri_objects_image3()
 % x,y,z must all be the same size
 %
-function out = mri_objects_image3(st, x, y, z)
+function out = mri_objects_image3(st, x, y, z, varargin)
+
+arg.dx = 0;
+arg.dy = 0;
+arg.dz = 0;
+arg = vararg_pair(arg, varargin);
+dd = {arg.dx, arg.dy, arg.dz};
 
 st_params = st.params; % fix: subsref limitation
 st_types = st.types; % fix: subsref limitation
 
 out = zeros(size(x));
 
-for ii=1:length(st_types)
+for ii = 1:length(st_types)
 	params = st_params{ii};
 	switch st_types{ii}
 	case 'cyl3'
-		out = out + mri_objects_image_cyl3(params, x, y, z);
+		out = out + mri_objects_image_cyl3(params, x, y, z, arg.dz);
 	case 'dirac3'
 		out = out + mri_objects_image_dirac3(params, x, y, z);
 	case 'gauss3'
 		out = out + mri_objects_image_gauss3(params, x, y, z);
 	case 'rect3'
-		out = out + mri_objects_image_rect3(params, x, y, z);
+		out = out + mri_objects_image_rect3(params, x, y, z, dd{:});
+	case 'sphere'
+		out = out + mri_objects_image_sphere(params, x, y, z);
 	otherwise
 		fail('unknown object type %s', st_types{ii})
 	end
 end
 
 
-%
 % mri_objects_kspace3()
 % x,y,z must all be the same size
 %
@@ -174,7 +197,7 @@ st_types = st.types; % fix: subsref limitation
 
 out = zeros(size(u));
 
-for ii=1:length(st_types)
+for ii = 1:length(st_types)
 	params = st_params{ii};
 	switch st_types{ii}
 	case 'cyl3'
@@ -185,13 +208,14 @@ for ii=1:length(st_types)
 		out = out + mri_objects_kspace_gauss3(params, u, v, w);
 	case 'rect3'
 		out = out + mri_objects_kspace_rect3(params, u, v, w);
+	case 'sphere'
+		out = out + mri_objects_kspace_sphere(params, u, v, w);
 	otherwise
 		fail('unknown object type %s', st_types{ii})
 	end
 end
 
 
-%
 % mri_objects_image_dirac2()
 %
 function out = mri_objects_image_dirac2(params, x,y)
@@ -199,14 +223,13 @@ if ncol(params) ~= 3, fail('dirac2 requires 3 parameters'), end
 params = [params(:,1:2) zeros(nrow(params),1) params(:,3)];
 out = mri_objects_image_dirac3(params, x,y,0);
 
-%
 % mri_objects_image_dirac3()
 % param: [N,4] [xcent ycent zcent value]
 %
 function out = mri_objects_image_dirac3(params, x,y,z)
 out = 0;
 if ncol(params) ~= 4, fail('dirac3 requires 4 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	out = out + par(4) * (x == par(1)) .* (y == par(2)) .* (z == par(3));
 end
@@ -214,7 +237,6 @@ out(out~=0) = inf;
 warn 'image of Dirac impulses is invalid'
 
 
-%
 % mri_objects_kspace_dirac2()
 %
 function out = mri_objects_kspace_dirac2(params, u,v)
@@ -222,48 +244,45 @@ if ncol(params) ~= 3, fail('dirac2 requires 3 parameters'), end
 params = [params(:,1:2) zeros(nrow(params),1) params(:,3)];
 out = mri_objects_kspace_dirac3(params, u,v,0);
 
-%
 % mri_objects_kspace_dirac3()
 % param: [N,4] [xcent ycent zcent value]
 %
 function out = mri_objects_kspace_dirac3(params, u,v,w)
 out = 0;
 if ncol(params) ~= 4, fail('dirac3 requires 4 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	out = out + par(4) * exp(-2i*pi*(u*par(1)+v*par(2)+w*par(3)));
 end
 
 
-%
 % mri_objects_image_circ2()
 %
 function out = mri_objects_image_circ2(params, x,y)
 if ncol(params) ~= 4, fail('circ2 requires 4 parameters'), end
 z = zeros(nrow(params),1);
 params = [params(:,1:2) z params(:,3) 1+z params(:,4)];
-out = mri_objects_image_cyl3(params, x,y,0);
+out = mri_objects_image_cyl3(params, x,y,0, 0);
 
 
-%
 % mri_objects_image_cyl3()
 % param: [N,6] [xcent ycent zcent rad zlen value]
 %
-function out = mri_objects_image_cyl3(params, x,y,z)
+function out = mri_objects_image_cyl3(params, x,y,z, dz)
 out = 0;
 if ncol(params) ~= 6, fail('cyl3 requires 6 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
 	zc = par(3);
 	rad = par(4);
 	len = par(5);
-	out = out + par(6) * ((x-xc).^2+(y-yc).^2 < rad^2) .* rect((z-zc)/len);
+	out = out + par(6) * ((x-xc).^2+(y-yc).^2 < rad^2) .* ...
+		mri_objects_trap(z-zc, dz, len);
 end
 
 
-%
 % mri_objects_kspace_circ2()
 %
 function out = mri_objects_kspace_circ2(params, u,v)
@@ -272,7 +291,6 @@ z = zeros(nrow(params),1);
 params = [params(:,1:2) z params(:,3) 1+z params(:,4)];
 out = mri_objects_kspace_cyl3(params, u,v,0);
 
-%
 % mri_objects_kspace_cyl3()
 % param: [N,6] [xcent ycent zcent rad zlen value]
 % note: circ(r) = rect(r/2) <=> 4*jinc(2*q)
@@ -280,7 +298,7 @@ out = mri_objects_kspace_cyl3(params, u,v,0);
 function out = mri_objects_kspace_cyl3(params, u,v,w)
 out = 0;
 if ncol(params) ~= 6, fail('cyl3 requires 6 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
@@ -293,7 +311,10 @@ for ii=1:nrow(params)
 end
 
 
-%
+function spread = fwhm2spread(fwhm)
+    spread = fwhm * sqrt(pi / log(16));
+
+
 % mri_objects_image_gauss2()
 %
 function out = mri_objects_image_gauss2(params, x,y)
@@ -303,21 +324,20 @@ zw = inf(size(z)); % trick
 params = [params(:,1:2) z params(:,3:4) zw params(:,5)];
 out = mri_objects_image_gauss3(params, x,y,0);
 
-%
 % mri_objects_image_gauss3()
 % param: [N,7] [xcent ycent zcent xfwhm yfwhm zfwhm value]
 %
 function out = mri_objects_image_gauss3(params, x,y,z)
 out = 0;
 if ncol(params) ~= 7, fail('gauss3 requires 7 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
 	zc = par(3);
-	xw = par(4) / sqrt(log(256)) * sqrt(2*pi);
-	yw = par(5) / sqrt(log(256)) * sqrt(2*pi);
-	zw = par(6) / sqrt(log(256)) * sqrt(2*pi);
+	xw = fwhm2spread(par(4));
+	yw = fwhm2spread(par(5));
+	zw = fwhm2spread(par(6));
 	out = out + par(7) ...
 		.* exp(-pi * ((x-xc)/xw).^2) ...
 		.* exp(-pi * ((y-yc)/yw).^2) ...
@@ -325,32 +345,30 @@ for ii=1:nrow(params)
 end
 
 
-%
 % mri_objects_kspace_gauss2()
 %
 function out = mri_objects_kspace_gauss2(params, u,v)
 if ncol(params) ~= 5, fail('gauss2 requires 5 parameters'), end
 z = zeros(nrow(params),1);
-zw = (1+z) * sqrt(log(256)) / sqrt(2*pi); % trick
+zw = (1 + z) / fwhm2spread(1); % trick
 params = [params(:,1:2) z params(:,3:4) zw params(:,5)];
 out = mri_objects_kspace_gauss3(params, u,v,0);
 
 
-%
 % mri_objects_kspace_gauss3()
 % param: [N,7] [xcent ycent zcent xfwhm yfwhm zfwhm value]
 %
 function out = mri_objects_kspace_gauss3(params, u,v,w)
 out = 0;
 if ncol(params) ~= 7, fail('gauss3 requires 7 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
 	zc = par(3);
-	xw = par(4) / sqrt(log(256)) * sqrt(2*pi);
-	yw = par(5) / sqrt(log(256)) * sqrt(2*pi);
-	zw = par(6) / sqrt(log(256)) * sqrt(2*pi);
+	xw = fwhm2spread(par(4));
+	yw = fwhm2spread(par(5));
+	zw = fwhm2spread(par(6));
 	out = out + par(7) * xw*yw*zw ...
 		.* exp(-pi * (u*xw).^2) ...
 		.* exp(-pi * (v*yw).^2) ...
@@ -359,24 +377,22 @@ for ii=1:nrow(params)
 end
 
 
-%
 % mri_objects_image_rect2()
 %
-function out = mri_objects_image_rect2(params, x,y)
+function out = mri_objects_image_rect2(params, x,y, dx, dy)
 if ncol(params) ~= 5, fail('rect2 requires 5 parameters'), end
 z = zeros(nrow(params),1);
 params = [params(:,1:2) z params(:,3:4) 1+z params(:,5)];
-out = mri_objects_image_rect3(params, x,y,0);
+out = mri_objects_image_rect3(params, x,y,0, dx,dy,0);
 
 
-%
 % mri_objects_image_rect3()
 % param: [N,7] [xcent ycent zcent xw yw zw value]
 %
-function out = mri_objects_image_rect3(params, x,y,z)
+function out = mri_objects_image_rect3(params, x,y,z, dx,dy,dz)
 out = 0;
 if ncol(params) ~= 7, fail('rect3 requires 7 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
@@ -385,13 +401,12 @@ for ii=1:nrow(params)
 	yw = par(5);
 	zw = par(6);
 	out = out + par(7) ...
-		.* rect((x-xc)/xw) ...
-		.* rect((y-yc)/yw) ...
-		.* rect((z-zc)/zw);
+		.* mri_objects_trap(x-xc, dx, xw) ...
+		.* mri_objects_trap(y-yc, dy, yw) ...
+		.* mri_objects_trap(z-zc, dz, zw);
 end
 
 
-%
 % mri_objects_kspace_rect2()
 %
 function out = mri_objects_kspace_rect2(params, u,v)
@@ -401,14 +416,13 @@ params = [params(:,1:2) z params(:,3:4) 1+z params(:,5)];
 out = mri_objects_kspace_rect3(params, u,v,0);
 
 
-%
 % mri_objects_kspace_rect3()
 % param: [N,7] [xcent ycent zcent xw yw zw value]
 %
 function out = mri_objects_kspace_rect3(params, u,v,w)
 out = 0;
 if ncol(params) ~= 7, fail('rect3 requires 7 parameters'), end
-for ii=1:nrow(params)
+for ii = 1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
@@ -424,7 +438,54 @@ for ii=1:nrow(params)
 end
 
 
+% mri_objects_image_sphere()
+% param: [N,5] [xcent ycent zcent rad value]
 %
+function out = mri_objects_image_sphere(params, x,y,z)
+out = 0;
+if ncol(params) ~= 5, fail('sphere requires 5 parameters'), end
+for ii = 1:nrow(params)
+	par = params(ii,:);
+	xc = par(1);
+	yc = par(2);
+	zc = par(3);
+	rad = par(4);
+	if (zc + rad) > max(z(:)) || (zc - rad) < min(z(:))
+		warn('zc=%g rad=%g vs zmin=%g zmax=%g', zc, rad, min(z(:)), max(z(:)))
+	end
+	out = out + par(5) * ((x-xc).^2 + (y-yc).^2 + (z-zc).^2 < rad^2);
+end
+
+
+% mri_objects_kspace_sphere()
+% param: [N,5] [xcent ycent zcent rad value]
+%
+function out = mri_objects_kspace_sphere(params, u,v,w)
+out = 0;
+if ncol(params) ~= 5, fail('sphere requires 5 parameters'), end
+s3 = sqrt(u.^2 + v.^2 + w.^2); % spherical "radial" coordinate
+for ii = 1:nrow(params)
+	par = params(ii,:);
+	xc = par(1);
+	yc = par(2);
+	zc = par(3);
+	rad = par(4);
+	out = out + par(5) * rad^3 * sphere_transform(rad * s3) ...
+		.* exp(-2i*pi*(u*xc + v*yc + w*zc));
+end
+
+% unit sphere Fourier transform
+% p253 of Bracewell 1978, The Fourier transform and its applications
+% or see http://doi.org/10.1002/mrm.21292
+function out = sphere_transform(s)
+	out = 4/3 * pi * ones(size(s));
+	ig = s ~= 0; % indices of nonzero arguments
+	s = s(ig);
+	s2pi = (2*pi) * s;
+	out(ig) = (sin(s2pi) - s2pi .* cos(s2pi)) ./ ((2 * pi^2) * (s.^3));
+%end
+
+
 % mri_objects_case1()
 %
 function out = mri_objects_case1(fov, arg)
@@ -455,22 +516,22 @@ end
 out = mri_objects('rect2', rp, 'gauss2', gp);
 
 
-%
 % mri_objects_test4()
 %
 function out = mri_objects_test4(fov, arg)
+assert(all(size(fov) == [1 3])) % fov must be 1x3
 
-cp = [0 0 0 fov(1)*0.4 fov(3)*1.0 1]; % cyl3
+cp = [0 0 0 fov(1)*0.4 fov(3)*0.8 1]; % cyl3
 
-rp = [ ...	% rect3
+rp = [ ... % rect3
 	-50 -50   0	40 40 40	1;
 	 50 -50  40	20 20 50	1;
 	  0  50 -40	30 30 60	1;
 ];
-rp(:,1:3) = rp(:,1:3)/256 .* repmat(fov, 3, 1);
-rp(:,4:6) = rp(:,4:6)/256 .* repmat(fov, 3, 1);
+rp(:,1:3) = rp(:,1:3)/256 .* fov;
+rp(:,4:6) = rp(:,4:6)/256 .* fov;
 
-gp = [ ...	% gauss3 bumps
+gp = [ ... % gauss3 bumps
 	-70 0 0		1 1 1	1;
 	-60 0 0		2 2 2	1;
 	-50 0 0		3 3 3	1;
@@ -480,8 +541,8 @@ gp = [ ...	% gauss3 bumps
 	20 0 0		7 7 7	1;
 	50 0 0		8 8 8	1;
 ];
-gp(:,1:3) = gp(:,1:3)/256 .* repmat(fov, 8, 1);
-gp(:,4:6) = gp(:,4:6)/256 .* repmat(fov, 8, 1);
+gp(:,1:3) = gp(:,1:3)/256 .* fov;
+gp(:,4:6) = gp(:,4:6)/256 .* fov;
 
 if isvar('arg') && streq(arg, 'cm')
 	rp(:,1:6) = rp(:,1:6) / 10;
@@ -491,86 +552,115 @@ end
 out = {'cyl3', cp, 'rect3', rp, 'gauss3', gp};
 
 
-%
 % mri_objects_test2()
 % 2d tests
 %
 function mri_objects_test2
-ig = image_geom('nx', 2^7, 'offsets', 'dsp', 'dx', 4);
+ig = image_geom('nx', 2^7, 'ny', 2^7+2, 'offsets', 'dsp', 'dx', 5, 'dy', 4);
 
 if 1 % test transforms of each object type
 	shift = [0.1 0.2] .* ig.fovs;
-	sizes = [0.15 0.1] .* ig.fovs;
+	sizes = [0.16 0.1] .* ig.fovs;
 	tests = {'circ2', [shift sizes(1) 2];
 		'gauss2', [shift sizes 2];
 		'rect2', [shift sizes 2];
 		};
-	im plc 3 3
-	for ii=1:nrow(tests)
+	im plc 3 5
+	for ii = 1:nrow(tests)
 		otype = tests{ii,1};
 		param = tests{ii,2};
 		st = mri_objects(otype, param);
-		i2 = st.image(ig.xg, ig.yg);
+		i2 = st.image(ig.xg, ig.yg, 'dx', ig.dx, 'dy', ig.dy);
 		s2 = fftshift(fftn(fftshift(i2)));
 		s2 = s2 * abs(ig.dx * ig.dy);
 		fg = ig.fg;
 		f2 = st.kspace(fg{:});
-		max_percent_diff(f2, s2)
+		max_percent_diff(f2, s2, otype)
 
-		im(1+3*(ii-1), i2, otype), cbar
-		im(2+3*(ii-1), abs(s2), 'fft'), cbar
-		im(3+3*(ii-1), abs(f2), 'kspace'), cbar
+		r2 = ifftshift(ifftn(fftshift(f2))) * ...
+			(ig.u(2) - ig.u(1)) * (ig.v(2) - ig.v(1)) * prod(ig.dim);
+
+		im(1+5*(ii-1), i2, otype), cbar
+		im(2+5*(ii-1), abs(s2), 'fft'), cbar
+		im(3+5*(ii-1), abs(f2), 'kspace'), cbar
+		im(4+5*(ii-1), abs(r2), 'recon'), cbar
+		im(5+5*(ii-1), abs(r2 - i2), 'err'), cbar
+		assert(norm(r2-i2) / norm(i2) < 5e-2)
 	end
 prompt
 end
 
-st = mri_objects('case1');
-xt = st.image(ig.xg, ig.yg);
-im clf, im(xt), cbar
+if 1
+	st = mri_objects('case1');
+	xt = st.image(ig.xg, ig.yg);
+	im clf, im(xt), cbar
 prompt
+end
 
 
-
-%
 % mri_objects_test3()
 %
 function mri_objects_test3
 ig = image_geom('nx', 2^7, 'nz', 2^5, 'offsets', 'dsp', 'dx', 4, 'dz', 3);
 
 if 1 % test transforms of each object type
-	shift = [0.1 0.2 0.3] .* ig.fovs;
+	shift = [0.1 0.2 -0.15] .* ig.fovs;
 	sizes = [0.15 0.1 0.2] .* ig.fovs;
-	tests = {'cyl3', [shift sizes([1 3]) 2];
+	tests = {
+		'sphere', [shift min(sizes) 2];
+		'cyl3', [shift sizes([1 3]) 2];
 		'gauss3', [shift sizes 2];
 		'rect3', [shift sizes 2];
 		};
 
-	im plc 3 3
-	for ii=1:nrow(tests)
+	im plc 4 3
+	for ii = 1:nrow(tests)
 		otype = tests{ii,1};
 		param = tests{ii,2};
 		st = mri_objects(otype, param);
-		i3 = st.image(ig.xg, ig.yg, ig.zg);
+		i3 = st.image(ig.xg, ig.yg, ig.zg, ...
+			'dx', ig.dx, 'dy', ig.dy, 'dz', ig.dz);
 		s3 = fftshift(fftn(fftshift(i3)));
 		s3 = s3 * abs(ig.dx * ig.dy * ig.dz);
 		fg = ig.fg;
 		f3 = st.kspace(fg{:});
-		max_percent_diff(f3, s3)
-		im(1+3*(ii-1), i3), cbar
+		max_percent_diff(f3, s3, otype)
+		im(1+3*(ii-1), i3, otype), cbar
 		im(2+3*(ii-1), abs(s3), 'fft'), cbar
 		im(3+3*(ii-1), abs(f3), 'kspace'), cbar
 	end
 prompt
 end
 
-st = mri_objects('fov', ig.fovs, 'test4');
-xt = st.image(ig.xg, ig.yg, ig.zg);
-im clf, im(xt), cbar
+if 1
+	st = mri_objects('fov', ig.fovs, 'test4'); % calls mri_objects_test4
+	xt = st.image(ig.xg, ig.yg, ig.zg);
+	im clf, im(xt), cbar
+end
 
 
-%
+% rect, or trapezoid to handle partial volume effects
+function out = mri_objects_trap(z, dz, len)
+	dz = abs(dz);
+	if dz == 0 || len < dz
+		out = rect(z / len);
+	else
+		out = interp1([-len/2-dz/2, -len/2+dz/2 len/2-dz/2 len/2+dz/2], [0 1 1 0], z, 'linear', 0);
+	end
+
+
 % mri_objects_test()
 %
 function mri_objects_test
 mri_objects_test2
 mri_objects_test3
+
+if false % test plot of trap function
+	len = 6;
+	dz = 2;
+	z = linspace(-8,8,201);
+	trap = mri_objects_trap(z, dz, len);
+	trap0 = mri_objects_trap(z, 0, len);
+	plot(z, trap, 'b-', z, trap0, 'g-')
+	xtick([0 -len/2 len/2-dz/2 len/2 len/2+dz/2])
+end

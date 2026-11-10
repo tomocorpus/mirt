@@ -61,7 +61,7 @@
 %| Copyright 2006-9-8, Jeff Fessler, University of Michigan
 
 if nargin == 1 && streq(ti, 'test'), mri_fun_approx_test, return, end
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 
 persistent warned
 if isempty(warned), warned = 0; end
@@ -83,7 +83,7 @@ o = vararg_pair(o, varargin);
 	o.type, o.nhist, o.L, o.Lmax, ...
 	o.nrms, o.tol, o.jskip, o.ctest, o.chat);
 
-% 
+%
 % mri_fun_approx()
 %
 function [B, C, hk, wk] = mri_fun_approx_do(ti, uj, vj, f1, f2, ...

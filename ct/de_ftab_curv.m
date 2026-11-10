@@ -23,13 +23,13 @@
 %|	.ls_grad(fh [1 M], ss [() L], ?wm [1 M])	[() L] WLS gradient
 %|	.ls_hess(fh [1 M], ss [() L], ?wm [1 M])	[() L L] WLS hessian
 %|	.ls_curv(sll, hfim, fim(sll)|[], ?'ctype', ctype)
-%|				 	[() M] curvatures for WLS case
+%|					[() M] curvatures for WLS case
 %|	.show_sur()			show surrogates
 %|
 %| Copyright 2008-10-5, Jeff Fessler, University of Michigan
 
 if nargin == 1 && streq(fit, 'test'), de_ftab_curv_test, clear, return, end
-if nargin < 1, help(mfilename), error(mfilename), end
+if nargin < 1, ir_usage, end
 
 arg.show = false;
 arg.ctype = 'pre10';

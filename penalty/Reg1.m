@@ -36,7 +36,7 @@
 %|				use "0" for C = I (identity matrix)
 %|	'beta', [1] | [M]	global regularization parameter(s)
 %|				default: 2^0
-%|	'pot_arg', {} 		arguments to potential_fun()
+%|	'pot_arg', {}		arguments to potential_fun()
 %|					e.g., {'huber', delta}, or cell{M} array
 %|				default: {'quad'} for quadratic regularization.
 %| ?	'pre_denom_sqs1_x0'	precompute denominator for SQS at x=0? (def: 0)
@@ -84,7 +84,7 @@
 %|
 %| Copyright 2006-12-6, Jeff Fessler, University of Michigan
 
-if nargin < 1, help(mfilename), error(mfilename), end
+if nargin < 1, ir_usage, end
 if streq(kappa, 'test'), run_mfile_local 'Reg1_test', return, end
 
 % option defaults

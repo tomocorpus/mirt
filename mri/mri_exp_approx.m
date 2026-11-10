@@ -4,6 +4,7 @@
 %| Build approximations to exponentials for iterative MR image reconstruction,
 %| generalizing "time segmentation" and "frequency segmentation" methods.
 %| This is a key part of the Gmri object for field-corrected MR reconstruction.
+%|
 %| in
 %|	ti	[M 1]	sample times
 %|	zmap	[N 1]	rate map: relax_map + 2i*pi*field_map
@@ -23,10 +24,12 @@
 %|
 %| out
 %|	B	[M L]	basis functions
-%|	C	[L N]	coefficients, such that B * C \approx exp(-ti * zmap.')
+%|	C	[L N]	coefficients, such that B * C ≈ exp(-ti * zmap.')
 %|	hk,zk	[Ko Kr]	histogram values and 'frequencies', if used
 %|
 %| type of approximation choices:
+%|
+%| todo: give user more control of histogram bins, especially for unwrapped field maps!
 %|
 %|	{'hist,time,unif', nhist}
 %|		This recommended (and default) approach uses time segmentation
@@ -50,12 +53,12 @@
 %|		with different choices for the nominal frequency components.
 %|		in all cases the coefficients are chosen by LS (Man, MRM, 1997).
 %|
-%|	for relaxation cases, nhist should be [Ko=#omap Kr=#rmap]
+%|	For relaxation cases, nhist should be [Ko=#omap Kr=#rmap].
 %|
 %| Copyright 2004-7-1, Jeff Fessler, University of Michigan
 
 if nargin == 1 && streq(ti, 'test'), mri_exp_approx_test, return, end
-if nargin < 3, help(mfilename), error(mfilename), end
+if nargin < 3, ir_usage, end
 
 persistent warned
 if isempty(warned), warned = 0; end
@@ -99,7 +102,7 @@ if streq(atype, 'hist,', 5) || o.ctest
 	if length(nhist) == 1 % fmap only
 
 		if any(rmap(:)), error 'rmap requires length(nhist)=2', end
-		[hk zc] = hist(imag(zmap(:)), nhist);
+		[hk, zc] = hist(imag(zmap(:)), nhist);
 		zk = 0 + 1i * zc(:); % [K 1]
 		if o.chat
 			bar(imag(zk)/(2*pi), hk)
@@ -117,10 +120,10 @@ if streq(atype, 'hist,', 5) || o.ctest
 
 	else
 
-		[hk zc] = hist_equal([imag(zmap(:)) real(zmap(:))], nhist); % 2d histogram
+		[hk, zc] = hist_equal([imag(zmap(:)) real(zmap(:))], nhist); % 2d histogram
 		zk = outer_sum(1i*zc{1}, zc{2}); % [K1 K2]
 
-		if o.acorr % code by valur olafsson
+		if o.acorr % code by valur olafsson (for A'A)
 			hk = conv2(hk, flipdim(hk,1)); % acorr fmap, aconv on r2smap
 			zc{1} = [-(nhist(1)-1):(nhist(1)-1)]' * (zc{1}(2)-zc{1}(1));
 			zc{2} = linspace(2*min(zc{2}), 2*max(zc{2}), 2*nhist(2) - 1);
@@ -140,7 +143,7 @@ end
 %
 if streq(atype, 'hist,svd')
 	Ew = Eh * spdiag(sqrt(hk));
-	[U S V] = svd(Ew, 0);
+	[U, S, V] = svd(Ew, 0);
 
 	B = U(:,1:LL);	% [M L] keep desired components
 
@@ -159,10 +162,11 @@ elseif streq(atype, 'time,unif') || streq(atype, 'hist,time,unif')
 			tl = mean(ti);
 		else
 			p = 100*[0:1:(LL-1)]/(LL-1);
-			tl = col(pn.prctile(ti, p));
+			tl = col(pn.prctile(ti, p)); % L of the time points
 		end
 
 		if rmsmax < 1 || o.ctest || streq(atype, 'hist,time,unif')
+			% TS choice of C for histogram, cf (16) in fessler:05:tbi:
 			Ch = exp(-tl * zk(:).'); % [L K]
 		end
 
@@ -170,16 +174,20 @@ elseif streq(atype, 'time,unif') || streq(atype, 'hist,time,unif')
 			warning 'For large L, try tol=''fro'''
 		end
 
-		if streq(atype, 'time,unif')
-			C = exp(-tl * zmap.'); % [L N] - classic TS
+		% Given C, the solution for B is E * C^+ = C' * (C*C')^+
+		if streq(atype, 'time,unif') % feasible only for small images ?
+			C = exp(-tl * zmap.'); % [L N] - classic TS, cf (16) in fessler:05:tbi
 			X = C.'; % [N L]
 			% X = X * inv(X'*X); % [N L]
 			X = pinv_tol(X, o.tol{:})'; % [N L]
+			% todo: smarter way to do this is to use C' * pinv(C*C')
+			% i didn't realize that back in the day.  so histogram not needed!
 			X = complexify(X);
 			B = mri_exp_mult_mex(X, complexify(zmap), ti).'; % [M L]
 
-		elseif streq(atype, 'hist,time,unif')
+		elseif streq(atype, 'hist,time,unif') % recommended (default)
 			W = spdiag(sqrt(hk), 'nowarn');
+			% like eqn (19)-(20) in fessler:05:tbi but (weighted) inv(C'C)*C'
 			P = pinv_tol(W * double(Ch.'), o.tol{:}) * W; % [L K], weighted pinv
 			if o.chat
 				rP = rank(P);
@@ -189,7 +197,7 @@ elseif streq(atype, 'time,unif') || streq(atype, 'hist,time,unif')
 			end
 			% B = exp(-ti*zk.') * P.'; % [M K] * [K L] = [M L]
 			P = complexify(P);
-			B = mri_exp_mult_mex(P', complexify(zk(:)), ti).';
+			B = mri_exp_mult_mex(P', complexify(zk(:)), ti).'; % [M L]
 
 		else
 			error 'bug'
@@ -253,14 +261,14 @@ elseif streq(atype, 'hist,fs,', 8)
 		end
 
 	else
-		error(sprintf('fs type "%s" unknown', atype))
+		fail('fs type "%s" unknown', atype)
 	end
 
 	zl = rl + (2i*pi) * fl;
 	B = exp(-ti * zl(:).'); % [M L] bases
 
 else
-	error(sprintf('type "%s" unknown', atype))
+	fail('type "%s" unknown', atype)
 end
 
 
@@ -328,7 +336,7 @@ if 1
 	ti = dsingle(ti);
 	zmap = dsingle(zmap);
 end
-[B C hk zk] = mri_exp_approx(ti, zmap, {1, 5e-2}, ...
+[B, C, hk, zk] = mri_exp_approx(ti, zmap, {1, 5e-2}, ...
 ...%		'tol', {'fro'}, ...
 		acorr_arg{:}, ...
 		'ctest', 1, 'chat', 1, 'type', {'hist,time,unif', nhist});
